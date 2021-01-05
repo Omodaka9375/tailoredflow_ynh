@@ -74,8 +74,6 @@ mkdir -p "$final_path/www"
     # Copy files to the right place
     cp "../sources/www/index.html" "$final_path/www/index.html"
 
-fi
-
 #=================================================
 # SECURE FILES AND DIRECTORIES
 #=================================================

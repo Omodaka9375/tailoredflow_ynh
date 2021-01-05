@@ -1,0 +1,55 @@
+{
+    "id": "tailoredflow",
+    "name": "Tailored Flow",
+    "packaging_format": 1,
+    "description": {
+        "en": "Your personal decentralized RSS podcast aggregator",
+        "fr": "Votre agrégateur personnel de podcast RSS décentralisé"
+    },
+    "version": "1.0~ynh4",
+    "url": "https://tailoredflow.today/",
+    "license": "GPL-3.0-only",
+    "maintainer": {
+        "name": "branislav Đalić",
+        "email": "branislav.djalic@gmail.com"
+    },
+    "requirements": {
+        "yunohost": ">= 4.0.0"
+    },
+    "multi_instance": true,
+    "services": [
+        "nginx"
+    ],
+    "arguments": {
+        "install" : [
+            {
+                "name": "domain",
+                "type": "domain",
+                "ask": {
+                    "en": "Choose a domain for your Webapp",
+                    "fr": "Choisissez un domaine pour votre Webapp"
+                },
+                "example": "domain.org"
+            },
+            {
+                "name": "path",
+                "type": "path",
+                "ask": {
+                    "en": "Choose a path for your Webapp",
+                    "fr": "Choisissez un chemin pour votre Webapp"
+                },
+                "example": "/site",
+                "default": "/site"
+            },
+            {
+                "name": "is_public",
+                "type": "boolean",
+                "ask": {
+                    "en": "Is it a public website?",
+                    "fr": "Est-ce un site public ?"
+                },
+                "default": false
+            }
+        ]
+    }
+}

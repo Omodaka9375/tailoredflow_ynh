@@ -1,0 +1,158 @@
+#!/bin/bash
+
+#=================================================
+# GENERIC START
+#=================================================
+# IMPORT GENERIC HELPERS
+#=================================================
+
+source _common.sh
+source /usr/share/yunohost/helpers
+
+#=================================================
+# LOAD SETTINGS
+#=================================================
+ynh_script_progression --message="Loading installation settings..." --weight=2
+
+app=$YNH_APP_INSTANCE_NAME
+
+domain=$(ynh_app_setting_get --app=$app --key=domain)
+path_url=$(ynh_app_setting_get --app=$app --key=path)
+is_public=$(ynh_app_setting_get --app=$app --key=is_public)
+final_path=$(ynh_app_setting_get --app=$app --key=final_path)
+
+overwrite_nginx=$(ynh_app_setting_get --app=$app --key=overwrite_nginx)
+
+#=================================================
+# CHECK VERSION
+#=================================================
+
+upgrade_type=$(ynh_check_app_version_changed)
+
+#=================================================
+# ENSURE DOWNWARD COMPATIBILITY
+#=================================================
+ynh_script_progression --message="Ensuring downward compatibility..."
+
+# Fix is_public as a boolean value
+if [ "$is_public" = "Yes" ]; then
+	ynh_app_setting_set --app=$app --key=is_public --value=1
+	is_public=1
+elif [ "$is_public" = "No" ]; then
+	ynh_app_setting_set --app=$app --key=is_public --value=0
+	is_public=0
+fi
+
+# Delete old user
+if [ -n "$(ynh_app_setting_get --app=$app --key=user)" ]
+then
+    ynh_system_user_delete --username="$(ynh_app_setting_get --app=$app --key=user)"
+    ynh_app_setting_delete --app=$app --key=user
+fi
+
+# If final_path doesn't exist, create it
+if [ -z "$final_path" ]; then
+	final_path=/var/www/$app
+	ynh_app_setting_set --app=$app --key=final_path --value=$final_path
+fi
+
+# If overwrite_nginx doesn't exist, create it
+if [ -z "$overwrite_nginx" ]; then
+	overwrite_nginx=0
+	ynh_app_setting_set --app=$app --key=overwrite_nginx --value=$overwrite_nginx
+fi
+
+
+#=================================================
+# BACKUP BEFORE UPGRADE THEN ACTIVE TRAP
+#=================================================
+ynh_script_progression --message="Backing up the app before upgrading (may take a while)..." --weight=3
+
+# Backup the current version of the app
+ynh_backup_before_upgrade
+ynh_clean_setup () {
+	# restore it if the upgrade fails
+	ynh_restore_upgradebackup
+}
+# Exit if an error occurs during the execution of the script
+ynh_abort_if_errors
+
+#=================================================
+# ACTIVATE MAINTENANCE MODE
+#=================================================
+ynh_script_progression --message="Activating maintenance mode..."
+
+ynh_maintenance_mode_ON
+
+#=================================================
+# STANDARD UPGRADE STEPS
+#=================================================
+# NGINX CONFIGURATION
+#=================================================
+
+# Overwrite the NGINX configuration only if it's allowed
+if [ $overwrite_nginx -eq 1 ]
+then
+    ynh_script_progression --message="Upgrading NGINX web server configuration..." --weight=2
+
+    # Create a dedicated NGINX config
+    ynh_add_nginx_config
+fi
+
+#=================================================
+# CREATE DEDICATED USER
+#=================================================
+ynh_script_progression --message="Making sure dedicated system user exists..." --weight=2
+
+ynh_system_user_create --username=$app --home_dir="$final_path"
+
+
+# Change the user group for previous my_webapp install script
+groupadd -f "$app"
+usermod -g "$app" "$app"
+
+#=================================================
+# SPECIFIC UPGRADE
+#=================================================
+# CONFIGURE SSH
+#=================================================
+#=================================================
+# GENERIC FINALIZATION
+#=================================================
+# SECURE FILES AND DIRECTORIES
+#=================================================
+
+# Home directory of the user needs to be owned by root to allow
+# SFTP connections
+chown root: "$final_path"
+
+#=================================================
+# SETUP SSOWAT
+#=================================================
+ynh_script_progression --message="Upgrading SSOwat configuration..."
+
+# Make app public if necessary
+if [ $is_public -eq 1 ]
+then
+	ynh_app_setting_set --app=$app --key=skipped_uris --value="/"
+fi
+
+#=================================================
+# RELOAD NGINX
+#=================================================
+ynh_script_progression --message="Reloading NGINX web server..."
+
+ynh_systemd_action --service_name=nginx --action=reload
+
+#=================================================
+# DEACTIVE MAINTENANCE MODE
+#=================================================
+ynh_script_progression --message="Disabling maintenance mode..."
+
+ynh_maintenance_mode_OFF
+
+#=================================================
+# END OF SCRIPT
+#=================================================
+
+ynh_script_progression --message="Upgrade of $app completed" --last

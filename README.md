@@ -52,7 +52,7 @@ No configuration needed
 
 ## Links
 
- * Report a bug: https://github.com/YunoHost-Apps/my_webapp_ynh/issues
+ * Report a bug: https://github.com/Omodaka9375/tailoredflow/issues
  * YunoHost website: https://yunohost.org/
 
 ---
